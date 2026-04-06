@@ -1,0 +1,42 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on version tags like v1.0.0
+
+jobs:
+  build:
+    name: Build & Release Extension
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to publish a Github Release
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Extension Dependencies
+        run: npm ci || npm install
+
+      - name: Install Webview Dependencies
+        run: |
+          cd webview-ui
+          npm ci || npm install
+
+      - name: Package Extension (VSIX)
+        run: npx vsce package --out qurl-extension.vsix
+
+      - name: Release to GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          files: qurl-extension.vsix
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
