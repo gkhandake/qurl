@@ -298,3 +298,35 @@ body {
   white-space: pre-wrap;
   word-break: break-all;
 }
+
+/* Modals */
+.modal-backdrop {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal {
+  background-color: var(--sidebar-bg);
+  border: 1px solid var(--border-color);
+  padding: 24px;
+  border-radius: 8px;
+  width: 350px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+
+.modal h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.modal label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 6px;
+  opacity: 0.8;
+}
