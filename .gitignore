@@ -1,0 +1,16 @@
+node_modules
+out/
+dist/
+.vscode-test/
+*.vsix
+
+# Webview UI dist
+webview-ui/dist/
+webview-ui/node_modules/
+
+# OS/System logs
+.DS_Store
+*.log
+
+# Webpack temp
+.env*
