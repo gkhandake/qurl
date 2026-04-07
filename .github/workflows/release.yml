@@ -24,12 +24,12 @@ jobs:
           cache: 'npm'
 
       - name: Install Extension Dependencies
-        run: npm ci || npm install
+        run: npm ci || npm install --legacy-peer-deps
 
       - name: Install Webview Dependencies
         run: |
           cd webview-ui
-          npm ci || npm install
+          npm ci || npm install --legacy-peer-deps
 
       - name: Package Extension (VSIX)
         run: npx vsce package --out qurl-extension-${{ github.ref_name }}.vsix
