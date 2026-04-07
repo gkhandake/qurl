@@ -3,6 +3,7 @@
   "displayName": "Qurl API Client",
   "description": "A REST API client for VS Code",
   "version": "1.0.0",
+  "icon": "icon.png",
   "publisher": "gurukul",
   "repository": {
     "type": "git",

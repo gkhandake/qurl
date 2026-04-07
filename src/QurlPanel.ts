@@ -122,7 +122,14 @@ export class QurlPanel {
       this._panel.webview.postMessage({
         command: 'requestError',
         payload: {
-          error: err.message
+          error: err.message,
+          code: err.code,
+          config: {
+            url: err.config?.url,
+            method: err.config?.method,
+            headers: err.config?.headers,
+            timeout: err.config?.timeout
+          }
         }
       });
     }

@@ -30,6 +30,23 @@ interface FolderNode extends NodeBase {
 
 type CollectionNode = RequestNode | FolderNode;
 
+// --- SVG Icons mimicking VS Code Codicons ---
+const FolderIcon = () => (
+  <svg className="icon-svg" viewBox="0 0 16 16"><path d="M7 2l1 1h6v9H2V2h5zm0-1H1v12h14V4H8L7 1z"/></svg>
+);
+const FolderOpenedIcon = () => (
+  <svg className="icon-svg" viewBox="0 0 16 16"><path d="M1 2v12h14V4H8L7 2H1zm13 11H2V3h4.5l1 2H14v8z"/></svg>
+);
+const FileIcon = () => (
+  <svg className="icon-svg" viewBox="0 0 16 16"><path d="M13 4l-4-4H3v16h10V4zm-1 9H4V1h4v4h4v8z"/></svg>
+);
+const PlusIcon = () => (
+  <svg className="icon-svg" style={{margin:0}} viewBox="0 0 16 16"><path d="M14 7v1H8v6H7V8H1V7h6V1h1v6h6z"/></svg>
+);
+const CopyIcon = () => (
+  <svg className="icon-svg" style={{margin:0}} viewBox="0 0 16 16"><path d="M4 4l1-1h5.4L14 6.6V16H4V4zm6 1l3 3h-3V5zM5 5v10h8V9H9V5H5z"/><path d="M2.5 1h6L9 1.5V3H8V2H3v9h1v1H2.5L2 11.5v-10L2.5 1z"/></svg>
+);
+
 export default function App() {
   const [nodes, setNodes] = useState<CollectionNode[]>([]);
   
@@ -65,7 +82,11 @@ export default function App() {
           break;
         case 'requestError':
           setLoading(false);
-          setResponse({ status: 'Error', statusText: message.payload.error, data: '' });
+          setResponse({
+            isError: true,
+            status: 'Failed',
+            ...message.payload
+          });
           break;
       }
     };
@@ -90,6 +111,15 @@ export default function App() {
       command: 'sendRequest',
       payload: { method, url, headers, body }
     });
+  };
+
+  const generateCurl = () => {
+    let curl = `curl -X ${method} "${url}"`;
+    headers.forEach(h => {
+      if (h.key && h.active) curl += ` -H "${h.key}: ${h.value}"`;
+    });
+    if (method !== 'GET' && body) curl += ` -d '${body}'`;
+    navigator.clipboard.writeText(curl);
   };
 
   const openSaveModal = () => {
@@ -175,7 +205,7 @@ export default function App() {
     if (children.length === 0 && depth === 0) {
       return (
         <div style={{ padding: '16px', opacity: 0.5, fontSize: '12px', textAlign: 'center' }}>
-          No nested files here.
+          No collections found.
         </div>
       );
     }
@@ -183,6 +213,7 @@ export default function App() {
     return children.sort((a,b) => (a.type === 'folder' ? -1 : 1)).map(node => {
       const paddingLeft = 16 + depth * 12;
       if (node.type === 'folder') {
+        const isExpanded = (node as FolderNode).expanded;
         return (
           <div key={node.id}>
             <div 
@@ -190,10 +221,10 @@ export default function App() {
               style={{ paddingLeft }}
               onClick={() => toggleFolder(node as FolderNode)}
             >
-              <span style={{ marginRight: 6 }}>{(node as FolderNode).expanded ? '📂' : '📁'}</span>
+              {isExpanded ? <FolderOpenedIcon /> : <FolderIcon />}
               <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{node.name}</span>
             </div>
-            {(node as FolderNode).expanded && renderTree(node.id, depth + 1)}
+            {isExpanded && renderTree(node.id, depth + 1)}
           </div>
         );
       } else {
@@ -213,11 +244,11 @@ export default function App() {
     <div className="app-container">
       {/* Sidebar Collections */}
       <div className="sidebar">
-        <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Collections</span>
+        <div className="sidebar-header">
+          <span>Qurl Collections</span>
           <div style={{ display: 'flex', gap: '4px' }}>
-             <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '12px' }} title="New Folder" onClick={() => openFolderModal(null)}>📁</button>
-             <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '12px' }} title="New Request" onClick={startNewRequest}>+</button>
+             <button className="btn-icon" title="New Folder" onClick={() => openFolderModal(null)}><FolderIcon /></button>
+             <button className="btn-icon" title="New Request" onClick={startNewRequest}><PlusIcon /></button>
           </div>
         </div>
         <div className="collection-list">
@@ -228,7 +259,7 @@ export default function App() {
       <div className="main-content">
         {/* URL Bar */}
         <div className="url-bar-section">
-          <select className="method-select" value={method} onChange={(e) => setMethod(e.target.value)}>
+          <select value={method} onChange={(e) => setMethod(e.target.value)}>
             <option>GET</option>
             <option>POST</option>
             <option>PUT</option>
@@ -238,7 +269,7 @@ export default function App() {
           <input 
             type="text" 
             className="url-input" 
-            placeholder="Enter request URL" 
+            placeholder="https://api.example.com/v1/resource" 
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendRequest()}
@@ -253,14 +284,18 @@ export default function App() {
         <div className="tabs">
           <div className={`tab ${activeTab === 'headers' ? 'active' : ''}`} onClick={() => setActiveTab('headers')}>Headers</div>
           <div className={`tab ${activeTab === 'body' ? 'active' : ''}`} onClick={() => setActiveTab('body')}>Body</div>
+          <div style={{ flex: 1 }}></div>
+          <button className="btn-icon" style={{ margin: '4px' }} title="Copy as cURL" onClick={generateCurl}>
+            <CopyIcon />
+          </button>
         </div>
 
         <div className="panel-container">
           {activeTab === 'headers' && (
-            <div>
+            <div style={{ overflowY: 'auto' }}>
               {headers.map((h, i) => (
                 <div key={i} className="key-value-row">
-                  <input placeholder="Key" value={h.key} onChange={(e) => updateHeader(i, 'key', e.target.value)} />
+                  <input placeholder="Header Name" value={h.key} onChange={(e) => updateHeader(i, 'key', e.target.value)} />
                   <input placeholder="Value" value={h.value} onChange={(e) => updateHeader(i, 'value', e.target.value)} />
                   <button className="remove-btn" title="Remove" onClick={() => removeHeader(i)}>×</button>
                 </div>
@@ -272,7 +307,7 @@ export default function App() {
           {activeTab === 'body' && (
             <textarea 
               className="code-area"
-              placeholder="Enter JSON or plain text body here..."
+              placeholder="Enter JSON or raw text body here..."
               value={body}
               onChange={(e) => setBody(e.target.value)}
             />
@@ -282,13 +317,26 @@ export default function App() {
         {/* Response Section */}
         {response && (
           <div className="response-section">
-            <div className="response-meta">
-              <span>Status: <span className={`status-badge ${response.status >= 200 && response.status < 300 ? 'status-good' : (response.status >= 400 ? 'status-bad' : 'status-warn')}`}>{response.status} {response.statusText}</span></span>
-              {response.time && <span>Time: {response.time} ms</span>}
-            </div>
-            <pre className="resp-body">
-              {typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : response.data}
-            </pre>
+            {response.isError ? (
+              <div className="error-banner">
+                <h4>Request Failed: {response.code || 'Network Error'}</h4>
+                <p>{response.error}</p>
+                {response.config?.url && (
+                  <p style={{ opacity: 0.7, marginTop: 8 }}>Attempted {response.config.method?.toUpperCase()} {response.config.url}</p>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="response-meta">
+                  <span>Status: <span className={`status-badge ${response.status >= 200 && response.status < 300 ? 'status-good' : (response.status >= 400 ? 'status-bad' : 'status-warn')}`}>{response.status} {response.statusText}</span></span>
+                  {response.time && <span>Time: <span style={{ color: 'var(--success-color)' }}>{response.time} ms</span></span>}
+                  {response.data && <span>Size: {new Blob([typeof response.data === 'string' ? response.data : JSON.stringify(response.data)]).size} bytes</span>}
+                </div>
+                <pre className="resp-body">
+                  {typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : response.data}
+                </pre>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -299,10 +347,10 @@ export default function App() {
           <div className="modal">
             <h3>Save Request</h3>
             <label>Name</label>
-            <input className="url-input" style={{ width: '100%', marginBottom: 12 }} value={saveName} onChange={e => setSaveName(e.target.value)} />
+            <input style={{ width: '100%', marginBottom: 12 }} value={saveName} onChange={e => setSaveName(e.target.value)} />
             
             <label>Folder Location</label>
-            <select className="method-select" style={{ width: '100%', marginBottom: 16 }} value={saveParentId || ''} onChange={e => setSaveParentId(e.target.value || null)}>
+            <select style={{ width: '100%', marginBottom: 16 }} value={saveParentId || ''} onChange={e => setSaveParentId(e.target.value || null)}>
               <option value="">(Root)</option>
               {foldersOnly.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
@@ -321,10 +369,10 @@ export default function App() {
           <div className="modal">
             <h3>New Folder</h3>
             <label>Folder Name</label>
-            <input className="url-input" style={{ width: '100%', marginBottom: 12 }} value={folderName} onChange={e => setFolderName(e.target.value)} />
+            <input style={{ width: '100%', marginBottom: 12 }} value={folderName} onChange={e => setFolderName(e.target.value)} />
             
             <label>Parent Folder</label>
-            <select className="method-select" style={{ width: '100%', marginBottom: 16 }} value={folderParentId || ''} onChange={e => setFolderParentId(e.target.value || null)}>
+            <select style={{ width: '100%', marginBottom: 16 }} value={folderParentId || ''} onChange={e => setFolderParentId(e.target.value || null)}>
               <option value="">(Root)</option>
               {foldersOnly.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
