@@ -314,31 +314,32 @@ export default function App() {
           )}
         </div>
 
-        {/* Response Section */}
-        {response && (
-          <div className="response-section">
-            {response.isError ? (
-              <div className="error-banner">
-                <h4>Request Failed: {response.code || 'Network Error'}</h4>
-                <p>{response.error}</p>
-                {response.config?.url && (
-                  <p style={{ opacity: 0.7, marginTop: 8 }}>Attempted {response.config.method?.toUpperCase()} {response.config.url}</p>
-                )}
+        <div className="response-section">
+          {!response ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', opacity: 0.3, fontSize: '14px' }}>
+              Send a request to see the response here
+            </div>
+          ) : response.isError ? (
+            <div className="error-banner">
+              <h4>Request Failed: {response.code || 'Network Error'}</h4>
+              <p>{response.error}</p>
+              {response.config?.url && (
+                <p style={{ opacity: 0.7, marginTop: 8 }}>Attempted {response.config.method?.toUpperCase()} {response.config.url}</p>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="response-meta">
+                <span>Status: <span className={`status-badge ${response.status >= 200 && response.status < 300 ? 'status-good' : (response.status >= 400 ? 'status-bad' : 'status-warn')}`}>{response.status} {response.statusText}</span></span>
+                {response.time && <span>Time: <span style={{ color: 'var(--success-color)' }}>{response.time} ms</span></span>}
+                {response.data && <span>Size: {new Blob([typeof response.data === 'string' ? response.data : JSON.stringify(response.data)]).size} bytes</span>}
               </div>
-            ) : (
-              <>
-                <div className="response-meta">
-                  <span>Status: <span className={`status-badge ${response.status >= 200 && response.status < 300 ? 'status-good' : (response.status >= 400 ? 'status-bad' : 'status-warn')}`}>{response.status} {response.statusText}</span></span>
-                  {response.time && <span>Time: <span style={{ color: 'var(--success-color)' }}>{response.time} ms</span></span>}
-                  {response.data && <span>Size: {new Blob([typeof response.data === 'string' ? response.data : JSON.stringify(response.data)]).size} bytes</span>}
-                </div>
-                <pre className="resp-body">
-                  {typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : response.data}
-                </pre>
-              </>
-            )}
-          </div>
-        )}
+              <pre className="resp-body">
+                {typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : response.data}
+              </pre>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Save Request Modal */}
