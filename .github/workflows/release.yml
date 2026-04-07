@@ -32,12 +32,12 @@ jobs:
           npm ci || npm install
 
       - name: Package Extension (VSIX)
-        run: npx vsce package --out qurl-extension.vsix
+        run: npx vsce package --out qurl-extension-${{ github.ref_name }}.vsix
 
       - name: Release to GitHub
         uses: softprops/action-gh-release@v2
         with:
-          files: qurl-extension.vsix
+          files: qurl-extension-${{ github.ref_name }}.vsix
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
