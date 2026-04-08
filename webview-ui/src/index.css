@@ -82,16 +82,23 @@ body {
 }
 
 .collection-item {
-  padding: 4px 16px;
+  padding: 4px 12px 4px 16px;
   cursor: pointer;
   display: flex;
   align-items: center;
   font-size: 13px;
   transition: background-color 0.1s;
+  position: relative;
+  min-height: 28px;
 }
 
 .collection-item:hover {
   background-color: var(--list-hover);
+}
+
+.collection-item.active {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
 }
 
 .icon-svg {
@@ -102,6 +109,40 @@ body {
   opacity: 0.8;
 }
 
+.node-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-actions {
+  display: none;
+  gap: 2px;
+  background-color: inherit;
+  padding-left: 4px;
+}
+
+.collection-item:hover .item-actions {
+  display: flex;
+}
+
+.btn-icon-small {
+  background: transparent;
+  border: none;
+  color: var(--text-color);
+  padding: 2px;
+  cursor: pointer;
+  display: inline-flex;
+  border-radius: 2px;
+  opacity: 0.6;
+}
+
+.btn-icon-small:hover {
+  background: rgba(255,255,255,0.1);
+  opacity: 1;
+}
+
 .method-badge {
   font-size: 10px;
   font-weight: 600;
@@ -109,6 +150,7 @@ body {
   width: 36px;
   text-align: right;
   opacity: 0.9;
+  flex-shrink: 0;
 }
 
 /* Use standard REST colors */
@@ -263,8 +305,8 @@ input:focus, select:focus, textarea:focus {
   border-top: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  flex: 1; /* Grow to fill bottom half */
-  min-height: 200px;
+  flex: 1; 
+  min-height: 240px; /* Slightly taller default */
   overflow: hidden;
 }
 

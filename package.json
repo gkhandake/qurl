@@ -23,7 +23,26 @@
         "command": "qurl.open",
         "title": "Qurl: Open API Client"
       }
-    ]
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "qurl-explorer",
+          "title": "Qurl",
+          "icon": "icon.png"
+        }
+      ]
+    },
+    "views": {
+      "qurl-explorer": [
+        {
+          "type": "webview",
+          "id": "qurl-sidebar",
+          "name": "Qurl Client",
+          "icon": "icon.png"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run build:webview && npm run package",

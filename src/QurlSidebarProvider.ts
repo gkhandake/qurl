@@ -1,48 +1,27 @@
 import * as vscode from 'vscode';
 import axios from 'axios';
 
-export class QurlPanel {
-  public static currentPanel: QurlPanel | undefined;
-  private readonly _panel: vscode.WebviewPanel;
-  private _disposables: vscode.Disposable[] = [];
-  private _context: vscode.ExtensionContext;
+export class QurlSidebarProvider implements vscode.WebviewViewProvider {
+  public static readonly viewType = 'qurl-sidebar';
+  private _view?: vscode.WebviewView;
 
-  private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
-    this._panel = panel;
-    this._context = context;
-    this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
-    this._panel.webview.html = this._getWebviewContent(this._panel.webview, extensionUri);
-    this._setWebviewMessageListener(this._panel.webview);
-  }
+  constructor(private readonly _extensionUri: vscode.Uri, private readonly _context: vscode.ExtensionContext) {}
 
-  public static render(extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
-    if (QurlPanel.currentPanel) {
-      QurlPanel.currentPanel._panel.reveal(vscode.ViewColumn.One);
-    } else {
-      const panel = vscode.window.createWebviewPanel(
-        'qurlClient',
-        'Qurl',
-        vscode.ViewColumn.One,
-        {
-          enableScripts: true,
-          localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'webview-ui/dist')],
-          retainContextWhenHidden: true,
-        }
-      );
+  public resolveWebviewView(
+    webviewView: vscode.WebviewView,
+    context: vscode.WebviewViewResolveContext,
+    _token: vscode.CancellationToken
+  ) {
+    this._view = webviewView;
 
-      QurlPanel.currentPanel = new QurlPanel(panel, extensionUri, context);
-    }
-  }
+    webviewView.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [vscode.Uri.joinPath(this._extensionUri, 'webview-ui/dist')],
+    };
 
-  public dispose() {
-    QurlPanel.currentPanel = undefined;
-    this._panel.dispose();
-    while (this._disposables.length) {
-      const disposable = this._disposables.pop();
-      if (disposable) {
-        disposable.dispose();
-      }
-    }
+    webviewView.webview.html = this._getWebviewContent(webviewView.webview, this._extensionUri);
+
+    this._setWebviewMessageListener(webviewView.webview);
   }
 
   private _getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri) {
@@ -82,9 +61,7 @@ export class QurlPanel {
             this._handleLoadCollections();
             break;
         }
-      },
-      undefined,
-      this._disposables
+      }
     );
   }
 
@@ -103,12 +80,12 @@ export class QurlPanel {
         url: url,
         headers: parsedHeaders,
         data: body ? body : undefined,
-        validateStatus: () => true, // Don't throw errors for non-2xx statuses
+        validateStatus: () => true,
       });
 
       const time = Date.now() - start;
 
-      this._panel.webview.postMessage({
+      this._view?.webview.postMessage({
         command: 'requestResponse',
         payload: {
           status: response.status,
@@ -119,7 +96,7 @@ export class QurlPanel {
         }
       });
     } catch (err: any) {
-      this._panel.webview.postMessage({
+      this._view?.webview.postMessage({
         command: 'requestError',
         payload: {
           error: err.message,
@@ -138,7 +115,9 @@ export class QurlPanel {
   private async _handleSaveCollection(payload: any) {
     const { collections } = payload;
     await this._context.globalState.update('qurl.collections', collections);
-    vscode.window.showInformationMessage('Qurl: Collections saved globally!');
+    // Notify all webviews (sidebar and panel) by posting message back?
+    // For now, just save.
+    vscode.window.showInformationMessage('Qurl: Collections saved!');
   }
 
   private _handleLoadCollections() {
@@ -146,7 +125,6 @@ export class QurlPanel {
     const initialized = this._context.globalState.get('qurl.initialized');
 
     if (!initialized || !collections) {
-      // Seed default examples
       const folderId = 'example-folder-1';
       collections = [
         {
@@ -165,27 +143,13 @@ export class QurlPanel {
           url: 'https://jsonplaceholder.typicode.com/posts/1',
           headers: [{ key: 'Accept', value: 'application/json', active: true }],
           body: ''
-        },
-        {
-          id: 'example-req-2',
-          type: 'request',
-          name: 'Create New Post',
-          parentId: folderId,
-          method: 'POST',
-          url: 'https://jsonplaceholder.typicode.com/posts',
-          headers: [{ key: 'Content-type', value: 'application/json; charset=UTF-8', active: true }],
-          body: JSON.stringify({
-            title: 'Qurl Demo',
-            body: 'Developing with Qurl is fast!',
-            userId: 1
-          }, null, 2)
         }
       ];
       this._context.globalState.update('qurl.collections', collections);
       this._context.globalState.update('qurl.initialized', true);
     }
 
-    this._panel.webview.postMessage({
+    this._view?.webview.postMessage({
       command: 'loadedCollections',
       payload: collections
     });

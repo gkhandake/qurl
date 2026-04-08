@@ -46,6 +46,12 @@ const PlusIcon = () => (
 const CopyIcon = () => (
   <svg className="icon-svg" style={{margin:0}} viewBox="0 0 16 16"><path d="M4 4l1-1h5.4L14 6.6V16H4V4zm6 1l3 3h-3V5zM5 5v10h8V9H9V5H5z"/><path d="M2.5 1h6L9 1.5V3H8V2H3v9h1v1H2.5L2 11.5v-10L2.5 1z"/></svg>
 );
+const EditIcon = () => (
+  <svg className="icon-svg" style={{margin:0}} viewBox="0 0 16 16"><path d="M13.23 1h-1.46L3.52 9.25l-.16.22L1 13.59 2.41 15l4.12-2.36.22-.16L15 4.23V2.77L13.23 1zM2.41 13.72l.74-2.1 1.36 1.36-2.1.74zm3.11-1.48l-1.35-1.35L11.77 3.3l1.35 1.35-7.6 7.59z"/></svg>
+);
+const DeleteIcon = () => (
+  <svg className="icon-svg" style={{margin:0}} viewBox="0 0 16 16"><path d="M11 1.07V2h3v1h-1v10h-1V3H4v10H3V3H2V2h3v-.93c0-.04.03-.07.07-.07h5.86c.04 0 .07.03.07.07zM6 2h4v-.86H6V2zM5 4h1v8H5V4zm2 0h1v8H7V4zm2 0h1v8H9V4z"/></svg>
+);
 
 export default function App() {
   const [nodes, setNodes] = useState<CollectionNode[]>([]);
@@ -58,6 +64,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'headers' | 'body'>('headers');
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<any>(null);
+
+  const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
+  const [editNodeId, setEditNodeId] = useState<string | null>(null);
 
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveName, setSaveName] = useState('');
@@ -130,18 +139,35 @@ export default function App() {
 
   const confirmSaveRequest = () => {
     if (!saveName) return;
-    const newReq: RequestNode = {
-      id: Date.now().toString(),
-      type: 'request',
-      name: saveName,
-      parentId: saveParentId,
-      method,
-      url,
-      headers,
-      body
-    };
-    saveNodesToGlobal([...nodes, newReq]);
+    if (editNodeId) {
+      const updated = nodes.map(n => n.id === editNodeId ? { ...n, name: saveName, parentId: saveParentId } : n);
+      saveNodesToGlobal(updated as CollectionNode[]);
+    } else {
+      const newReq: RequestNode = {
+        id: Date.now().toString(),
+        type: 'request',
+        name: saveName,
+        parentId: saveParentId,
+        method,
+        url,
+        headers,
+        body
+      };
+      saveNodesToGlobal([...nodes, newReq]);
+    }
     setShowSaveModal(false);
+    setEditNodeId(null);
+  };
+
+  const updateActiveRequest = () => {
+    if (!activeNodeId) return;
+    const updated = nodes.map(n => {
+      if (n.id === activeNodeId && n.type === 'request') {
+        return { ...n, method, url, headers, body };
+      }
+      return n;
+    });
+    saveNodesToGlobal(updated as CollectionNode[]);
   };
 
   const openFolderModal = (parentId: string | null = null) => {
@@ -152,15 +178,21 @@ export default function App() {
 
   const confirmSaveFolder = () => {
     if (!folderName) return;
-    const newFolder: FolderNode = {
-      id: Date.now().toString(),
-      type: 'folder',
-      name: folderName,
-      parentId: folderParentId,
-      expanded: true
-    };
-    saveNodesToGlobal([...nodes, newFolder]);
+    if (editNodeId) {
+      const updated = nodes.map(n => n.id === editNodeId ? { ...n, name: folderName, parentId: folderParentId } : n);
+      saveNodesToGlobal(updated as CollectionNode[]);
+    } else {
+      const newFolder: FolderNode = {
+        id: Date.now().toString(),
+        type: 'folder',
+        name: folderName,
+        parentId: folderParentId,
+        expanded: true
+      };
+      saveNodesToGlobal([...nodes, newFolder]);
+    }
     setShowFolderModal(false);
+    setEditNodeId(null);
   };
 
   const loadRequest = (req: RequestNode) => {
@@ -169,6 +201,7 @@ export default function App() {
     setHeaders(req.headers || [{ key: '', value: '', active: true }]);
     setBody(req.body || '');
     setResponse(null);
+    setActiveNodeId(req.id);
   };
 
   const toggleFolder = (folder: FolderNode) => {
@@ -182,6 +215,38 @@ export default function App() {
     setHeaders([{ key: '', value: '', active: true }]);
     setBody('');
     setResponse(null);
+    setActiveNodeId(null);
+  };
+
+  const deleteNode = (id: string) => {
+    const toDelete = new Set<string>([id]);
+    const findChildren = (parentId: string) => {
+      nodes.forEach(n => {
+        if (n.parentId === parentId) {
+          toDelete.add(n.id);
+          if (n.type === 'folder') findChildren(n.id);
+        }
+      });
+    };
+    const node = nodes.find(n => n.id === id);
+    if (node?.type === 'folder') findChildren(id);
+    
+    const remaining = nodes.filter(n => !toDelete.has(n.id));
+    saveNodesToGlobal(remaining);
+    if (activeNodeId && toDelete.has(activeNodeId)) setActiveNodeId(null);
+  };
+
+  const openEditModal = (node: CollectionNode) => {
+    setEditNodeId(node.id);
+    if (node.type === 'folder') {
+      setFolderName(node.name);
+      setFolderParentId(node.parentId);
+      setShowFolderModal(true);
+    } else {
+      setSaveName(node.name);
+      setSaveParentId(node.parentId);
+      setShowSaveModal(true);
+    }
   };
 
   const updateHeader = (index: number, field: 'key' | 'value', val: string) => {
@@ -212,26 +277,35 @@ export default function App() {
 
     return children.sort((a,b) => (a.type === 'folder' ? -1 : 1)).map(node => {
       const paddingLeft = 16 + depth * 12;
+      const isActive = activeNodeId === node.id;
       if (node.type === 'folder') {
         const isExpanded = (node as FolderNode).expanded;
         return (
           <div key={node.id}>
             <div 
-              className="collection-item" 
+              className={`collection-item ${isActive ? 'active' : ''}`} 
               style={{ paddingLeft }}
               onClick={() => toggleFolder(node as FolderNode)}
             >
               {isExpanded ? <FolderOpenedIcon /> : <FolderIcon />}
-              <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{node.name}</span>
+              <span className="node-name">{node.name}</span>
+              <div className="item-actions">
+                <button className="btn-icon-small" title="Edit" onClick={(e) => { e.stopPropagation(); openEditModal(node); }}><EditIcon /></button>
+                <button className="btn-icon-small" title="Delete" onClick={(e) => { e.stopPropagation(); deleteNode(node.id); }}><DeleteIcon /></button>
+              </div>
             </div>
             {isExpanded && renderTree(node.id, depth + 1)}
           </div>
         );
       } else {
         return (
-          <div key={node.id} className="collection-item" style={{ paddingLeft }} onClick={() => loadRequest(node as RequestNode)}>
+          <div key={node.id} className={`collection-item ${isActive ? 'active' : ''}`} style={{ paddingLeft }} onClick={() => loadRequest(node as RequestNode)}>
             <span className={`method-badge method-${(node as RequestNode).method}`}>{(node as RequestNode).method}</span>
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{node.name}</span>
+            <span className="node-name">{node.name}</span>
+            <div className="item-actions">
+                <button className="btn-icon-small" title="Edit" onClick={(e) => { e.stopPropagation(); openEditModal(node); }}><EditIcon /></button>
+                <button className="btn-icon-small" title="Delete" onClick={(e) => { e.stopPropagation(); deleteNode(node.id); }}><DeleteIcon /></button>
+            </div>
           </div>
         );
       }
@@ -277,7 +351,12 @@ export default function App() {
           <button className="btn" onClick={sendRequest} disabled={loading}>
             {loading ? 'Sending...' : 'Send'}
           </button>
-          <button className="btn btn-secondary" onClick={openSaveModal}>Save</button>
+          {activeNodeId ? (
+            <button className="btn btn-secondary" onClick={updateActiveRequest} title="Update Current Saved Request">Update</button>
+          ) : (
+            <button className="btn btn-secondary" onClick={openSaveModal}>Save</button>
+          )}
+          {activeNodeId && <button className="btn btn-secondary" onClick={openSaveModal} title="Save as New Request">Save As...</button>}
         </div>
 
         {/* Request Setup Tabs */}
@@ -341,24 +420,21 @@ export default function App() {
           )}
         </div>
       </div>
-
-      {/* Save Request Modal */}
       {showSaveModal && (
         <div className="modal-backdrop">
           <div className="modal">
-            <h3>Save Request</h3>
+            <h3>{editNodeId ? 'Edit Request Details' : 'Save Request'}</h3>
             <label>Name</label>
             <input style={{ width: '100%', marginBottom: 12 }} value={saveName} onChange={e => setSaveName(e.target.value)} />
             
             <label>Folder Location</label>
             <select style={{ width: '100%', marginBottom: 16 }} value={saveParentId || ''} onChange={e => setSaveParentId(e.target.value || null)}>
               <option value="">(Root)</option>
-              {foldersOnly.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+              {foldersOnly.map(f => (f.id !== editNodeId) && <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
-
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => setShowSaveModal(false)}>Cancel</button>
-              <button className="btn" onClick={confirmSaveRequest}>Save</button>
+              <button className="btn btn-secondary" onClick={() => { setShowSaveModal(false); setEditNodeId(null); }}>Cancel</button>
+              <button className="btn" onClick={confirmSaveRequest}>{editNodeId ? 'Update' : 'Save'}</button>
             </div>
           </div>
         </div>
@@ -368,23 +444,24 @@ export default function App() {
       {showFolderModal && (
         <div className="modal-backdrop">
           <div className="modal">
-            <h3>New Folder</h3>
+            <h3>{editNodeId ? 'Rename Folder' : 'New Folder'}</h3>
             <label>Folder Name</label>
             <input style={{ width: '100%', marginBottom: 12 }} value={folderName} onChange={e => setFolderName(e.target.value)} />
             
             <label>Parent Folder</label>
             <select style={{ width: '100%', marginBottom: 16 }} value={folderParentId || ''} onChange={e => setFolderParentId(e.target.value || null)}>
               <option value="">(Root)</option>
-              {foldersOnly.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+              {foldersOnly.filter(f => f.id !== editNodeId).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
 
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => setShowFolderModal(false)}>Cancel</button>
-              <button className="btn" onClick={confirmSaveFolder}>Create</button>
+              <button className="btn btn-secondary" onClick={() => { setShowFolderModal(false); setEditNodeId(null); }}>Cancel</button>
+              <button className="btn" onClick={confirmSaveFolder}>{editNodeId ? 'Rename' : 'Create'}</button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }
