@@ -20,12 +20,12 @@ jobs:
         cache: 'npm'
 
     - name: Install dependencies (Root)
-      run: npm install
+      run: npm install --legacy-peer-deps
 
     - name: Install dependencies (Webview)
       run: |
         cd webview-ui
-        npm install
+        npm install --legacy-peer-deps
 
     - name: Build Webview
       run: npm run build:webview
